@@ -1,0 +1,500 @@
+openapi: 3.0.3
+info:
+  title: Threat Intelligence Dashboard API
+  description: REST API for managing and querying threat intelligence indicators, campaigns, and threat actors.
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: indicators
+    description: Threat indicator operations
+  - name: campaigns
+    description: Campaign operations
+  - name: dashboard
+    description: Dashboard statistics
+  - name: health
+    description: Health check
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Health check
+      description: Check if the API is healthy and database is connected
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/indicators/{id}:
+    get:
+      tags: [indicators]
+      summary: Get indicator by ID
+      description: Retrieve detailed information about a specific indicator including relationships
+      operationId: getIndicatorById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Indicator UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Indicator found
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/IndicatorDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/indicators/search:
+    get:
+      tags: [indicators]
+      summary: Search indicators
+      description: Search and filter indicators with pagination
+      operationId: searchIndicators
+      parameters:
+        - name: type
+          in: query
+          description: Filter by indicator type
+          schema:
+            type: string
+            enum: [ip, domain, url, hash]
+        - name: value
+          in: query
+          description: Partial match search on indicator value
+          schema:
+            type: string
+        - name: threat_actor
+          in: query
+          description: Filter by threat actor ID
+          schema:
+            type: string
+            format: uuid
+        - name: campaign
+          in: query
+          description: Filter by campaign ID
+          schema:
+            type: string
+            format: uuid
+        - name: first_seen_after
+          in: query
+          description: Filter indicators seen after this date
+          schema:
+            type: string
+            format: date
+        - name: last_seen_before
+          in: query
+          description: Filter indicators seen before this date
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Results per page
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SearchResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/campaigns/{id}/indicators:
+    get:
+      tags: [campaigns]
+      summary: Get campaign indicators timeline
+      description: Get all indicators associated with a campaign, organized for timeline visualization
+      operationId: getCampaignIndicators
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Campaign UUID
+          schema:
+            type: string
+            format: uuid
+        - name: group_by
+          in: query
+          description: Group results by time period
+          schema:
+            type: string
+            enum: [day, week]
+            default: day
+        - name: start_date
+          in: query
+          description: Start date filter
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          description: End date filter
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Campaign timeline
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CampaignTimeline'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/dashboard/summary:
+    get:
+      tags: [dashboard]
+      summary: Get dashboard summary
+      description: Provide high-level statistics for the dashboard overview
+      operationId: getDashboardSummary
+      parameters:
+        - name: time_range
+          in: query
+          description: Time range for statistics
+          schema:
+            type: string
+            enum: [24h, 7d, 30d]
+            default: 7d
+      responses:
+        '200':
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DashboardSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  schemas:
+    APIResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+        error:
+          $ref: '#/components/schemas/APIError'
+
+    APIError:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        database:
+          type: string
+          enum: [connected, disconnected]
+
+    IndicatorDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [ip, domain, url, hash]
+        value:
+          type: string
+        confidence:
+          type: integer
+          minimum: 0
+          maximum: 100
+        first_seen:
+          type: string
+          format: date-time
+        last_seen:
+          type: string
+          format: date-time
+        threat_actors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ThreatActorSummary'
+        campaigns:
+          type: array
+          items:
+            $ref: '#/components/schemas/CampaignSummary'
+        related_indicators:
+          type: array
+          items:
+            $ref: '#/components/schemas/RelatedIndicator'
+
+    ThreatActorSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        confidence:
+          type: integer
+
+    CampaignSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        active:
+          type: boolean
+
+    RelatedIndicator:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        value:
+          type: string
+        relationship:
+          type: string
+
+    SearchResult:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/IndicatorSearchItem'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        total_pages:
+          type: integer
+
+    IndicatorSearchItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        value:
+          type: string
+        confidence:
+          type: integer
+        first_seen:
+          type: string
+          format: date-time
+        campaign_count:
+          type: integer
+        threat_actor_count:
+          type: integer
+
+    CampaignTimeline:
+      type: object
+      properties:
+        campaign:
+          $ref: '#/components/schemas/CampaignDetail'
+        timeline:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelinePeriod'
+        summary:
+          $ref: '#/components/schemas/TimelineSummary'
+
+    CampaignDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        first_seen:
+          type: string
+          format: date-time
+        last_seen:
+          type: string
+          format: date-time
+        status:
+          type: string
+
+    TimelinePeriod:
+      type: object
+      properties:
+        period:
+          type: string
+          format: date
+        indicators:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineIndicator'
+        counts:
+          type: object
+          additionalProperties:
+            type: integer
+
+    TimelineIndicator:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        value:
+          type: string
+
+    TimelineSummary:
+      type: object
+      properties:
+        total_indicators:
+          type: integer
+        unique_ips:
+          type: integer
+        unique_domains:
+          type: integer
+        duration_days:
+          type: integer
+
+    DashboardSummary:
+      type: object
+      properties:
+        time_range:
+          type: string
+        new_indicators:
+          type: object
+          additionalProperties:
+            type: integer
+        active_campaigns:
+          type: integer
+        top_threat_actors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ThreatActorWithCount'
+        indicator_distribution:
+          type: object
+          additionalProperties:
+            type: integer
+
+    ThreatActorWithCount:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        indicator_count:
+          type: integer
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIResponse'
+          example:
+            success: false
+            error:
+              code: NOT_FOUND
+              message: Resource not found
+
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIResponse'
+          example:
+            success: false
+            error:
+              code: BAD_REQUEST
+              message: Invalid request parameters
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIResponse'
+          example:
+            success: false
+            error:
+              code: INTERNAL_ERROR
+              message: Internal server error
