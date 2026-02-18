@@ -18,7 +18,7 @@ type Campaign struct {
 }
 
 type CampaignWithTimeline struct {
-	Campaign Campaign         `json:"campaign"`
+	Campaign CampaignDetail   `json:"campaign"`
 	Timeline []TimelinePeriod `json:"timeline"`
 	Summary  TimelineSummary  `json:"summary"`
 }

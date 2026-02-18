@@ -102,10 +102,12 @@ func seedThreatActors(db *sql.DB, count int) ([]string, error) {
 		firstSeen := randomTime(365 * 3)
 		lastSeen := randomTimeBetween(firstSeen, time.Now())
 
-		_, err := db.Exec(`
+		var insertedID string
+		err := db.QueryRow(`
 			INSERT INTO threat_actors (id, name, description, country, motivation, first_seen, last_seen, confidence_level)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (name) DO NOTHING
+			ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+			RETURNING id
 		`,
 			id,
 			name,
@@ -115,11 +117,11 @@ func seedThreatActors(db *sql.DB, count int) ([]string, error) {
 			firstSeen,
 			lastSeen,
 			rand.Intn(100),
-		)
+		).Scan(&insertedID)
 		if err != nil {
 			return nil, err
 		}
-		ids = append(ids, id)
+		ids = append(ids, insertedID)
 	}
 
 	return ids, nil
@@ -293,6 +295,9 @@ func randomTime(maxDaysAgo int) time.Time {
 
 func randomTimeBetween(start, end time.Time) time.Time {
 	delta := end.Sub(start)
+	if delta <= 0 {
+		return start
+	}
 	randomDelta := time.Duration(rand.Int63n(int64(delta)))
 	return start.Add(randomDelta)
 }

@@ -7,10 +7,10 @@ import (
 )
 
 type DashboardHandler struct {
-	service *service.DashboardService
+	service service.DashboardServiceInterface
 }
 
-func NewDashboardHandler(svc *service.DashboardService) *DashboardHandler {
+func NewDashboardHandler(svc service.DashboardServiceInterface) *DashboardHandler {
 	return &DashboardHandler{service: svc}
 }
 

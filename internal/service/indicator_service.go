@@ -9,11 +9,11 @@ import (
 )
 
 type IndicatorService struct {
-	repo  *repository.IndicatorRepository
+	repo  repository.IndicatorRepositoryInterface
 	cache *cache.Cache
 }
 
-func NewIndicatorService(repo *repository.IndicatorRepository, c *cache.Cache) *IndicatorService {
+func NewIndicatorService(repo repository.IndicatorRepositoryInterface, c *cache.Cache) *IndicatorService {
 	return &IndicatorService{
 		repo:  repo,
 		cache: c,

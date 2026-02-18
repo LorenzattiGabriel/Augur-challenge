@@ -9,11 +9,11 @@ import (
 )
 
 type DashboardService struct {
-	repo  *repository.DashboardRepository
+	repo  repository.DashboardRepositoryInterface
 	cache *cache.Cache
 }
 
-func NewDashboardService(repo *repository.DashboardRepository, c *cache.Cache) *DashboardService {
+func NewDashboardService(repo repository.DashboardRepositoryInterface, c *cache.Cache) *DashboardService {
 	return &DashboardService{
 		repo:  repo,
 		cache: c,

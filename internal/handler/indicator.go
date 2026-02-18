@@ -9,13 +9,14 @@ import (
 	"github.com/LorenzattiGabriel/threat-intel-api/internal/repository"
 	"github.com/LorenzattiGabriel/threat-intel-api/internal/service"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 )
 
 type IndicatorHandler struct {
-	service *service.IndicatorService
+	service service.IndicatorServiceInterface
 }
 
-func NewIndicatorHandler(svc *service.IndicatorService) *IndicatorHandler {
+func NewIndicatorHandler(svc service.IndicatorServiceInterface) *IndicatorHandler {
 	return &IndicatorHandler{service: svc}
 }
 
@@ -23,6 +24,11 @@ func (h *IndicatorHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		respondBadRequest(w, "Indicator ID is required")
+		return
+	}
+
+	if _, err := uuid.Parse(id); err != nil {
+		respondBadRequest(w, "Invalid indicator ID format")
 		return
 	}
 

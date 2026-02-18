@@ -12,11 +12,6 @@ import (
 	"github.com/LorenzattiGabriel/threat-intel-api/internal/cache"
 	"github.com/LorenzattiGabriel/threat-intel-api/internal/config"
 	"github.com/LorenzattiGabriel/threat-intel-api/internal/database"
-	"github.com/LorenzattiGabriel/threat-intel-api/internal/handler"
-	"github.com/LorenzattiGabriel/threat-intel-api/internal/middleware"
-	"github.com/LorenzattiGabriel/threat-intel-api/internal/repository"
-	"github.com/LorenzattiGabriel/threat-intel-api/internal/service"
-	"github.com/go-chi/chi/v5"
 )
 
 func main() {
@@ -52,54 +47,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	indicatorRepo := repository.NewIndicatorRepository(db)
-	campaignRepo := repository.NewCampaignRepository(db)
-	dashboardRepo := repository.NewDashboardRepository(db)
-
-	indicatorService := service.NewIndicatorService(indicatorRepo, appCache)
-	campaignService := service.NewCampaignService(campaignRepo, appCache)
-	dashboardService := service.NewDashboardService(dashboardRepo, appCache)
-
-	indicatorHandler := handler.NewIndicatorHandler(indicatorService)
-	campaignHandler := handler.NewCampaignHandler(campaignService)
-	dashboardHandler := handler.NewDashboardHandler(dashboardService)
-	healthHandler := handler.NewHealthHandler(db)
-
-	r := chi.NewRouter()
-
-	r.Use(middleware.Recovery(logger))
-	r.Use(middleware.Logger(logger))
-	r.Use(middleware.CORS())
-	r.Use(middleware.RateLimiter(cfg.RateLimitRPM))
-
-	r.Get("/health", healthHandler.Check)
-
-	r.Route("/api", func(r chi.Router) {
-		r.Route("/indicators", func(r chi.Router) {
-			r.Get("/search", indicatorHandler.Search)
-			r.Get("/{id}", indicatorHandler.GetByID)
-		})
-
-		r.Route("/campaigns", func(r chi.Router) {
-			r.Get("/{id}/indicators", campaignHandler.GetIndicators)
-		})
-
-		r.Route("/dashboard", func(r chi.Router) {
-			r.Get("/summary", dashboardHandler.GetSummary)
-		})
-	})
-
-	server := &http.Server{
-		Addr:         cfg.ServerHost + ":" + cfg.ServerPort,
-		Handler:      r,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
+	server := NewServer(cfg, logger, db, appCache)
 
 	go func() {
-		logger.Info("Starting server", "address", server.Addr)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.Start(); err != nil && err != http.ErrServerClosed {
 			logger.Error("Server error", "error", err)
 			os.Exit(1)
 		}
@@ -108,8 +59,6 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-
-	logger.Info("Shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

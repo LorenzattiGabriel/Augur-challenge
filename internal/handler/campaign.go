@@ -8,13 +8,14 @@ import (
 	"github.com/LorenzattiGabriel/threat-intel-api/internal/repository"
 	"github.com/LorenzattiGabriel/threat-intel-api/internal/service"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 )
 
 type CampaignHandler struct {
-	service *service.CampaignService
+	service service.CampaignServiceInterface
 }
 
-func NewCampaignHandler(svc *service.CampaignService) *CampaignHandler {
+func NewCampaignHandler(svc service.CampaignServiceInterface) *CampaignHandler {
 	return &CampaignHandler{service: svc}
 }
 
@@ -22,6 +23,11 @@ func (h *CampaignHandler) GetIndicators(w http.ResponseWriter, r *http.Request) 
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		respondBadRequest(w, "Campaign ID is required")
+		return
+	}
+
+	if _, err := uuid.Parse(id); err != nil {
+		respondBadRequest(w, "Invalid campaign ID format")
 		return
 	}
 

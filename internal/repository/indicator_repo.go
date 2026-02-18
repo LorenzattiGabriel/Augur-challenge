@@ -35,13 +35,13 @@ func (r *IndicatorRepository) GetByID(ctx context.Context, id string) (*model.In
 	`
 
 	var indicator model.IndicatorWithRelations
-	var tags, metadata sql.NullString
+	var description, severity, tags, metadata, source sql.NullString
 	var firstSeen, lastSeen sql.NullTime
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&indicator.ID, &indicator.Type, &indicator.Value, &indicator.Description,
-		&indicator.Severity, &indicator.Confidence, &firstSeen, &lastSeen,
-		&indicator.IsActive, &tags, &metadata, &indicator.Source,
+		&indicator.ID, &indicator.Type, &indicator.Value, &description,
+		&severity, &indicator.Confidence, &firstSeen, &lastSeen,
+		&indicator.IsActive, &tags, &metadata, &source,
 		&indicator.CreatedAt, &indicator.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -51,6 +51,15 @@ func (r *IndicatorRepository) GetByID(ctx context.Context, id string) (*model.In
 		return nil, fmt.Errorf("failed to get indicator: %w", err)
 	}
 
+	if description.Valid {
+		indicator.Description = description.String
+	}
+	if severity.Valid {
+		indicator.Severity = severity.String
+	}
+	if source.Valid {
+		indicator.Source = source.String
+	}
 	if firstSeen.Valid {
 		indicator.FirstSeen = &firstSeen.Time
 	}

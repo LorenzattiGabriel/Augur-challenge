@@ -1,0 +1,10 @@
+DROP INDEX IF EXISTS idx_indicators_type_created;
+DROP INDEX IF EXISTS idx_indicators_type_active;
+DROP INDEX IF EXISTS idx_indicators_created_at;
+DROP INDEX IF EXISTS idx_indicators_confidence;
+DROP INDEX IF EXISTS idx_indicators_is_active;
+DROP INDEX IF EXISTS idx_indicators_last_seen;
+DROP INDEX IF EXISTS idx_indicators_first_seen;
+DROP INDEX IF EXISTS idx_indicators_value;
+DROP INDEX IF EXISTS idx_indicators_type;
+DROP TABLE IF EXISTS indicators;

@@ -9,11 +9,11 @@ import (
 )
 
 type CampaignService struct {
-	repo  *repository.CampaignRepository
+	repo  repository.CampaignRepositoryInterface
 	cache *cache.Cache
 }
 
-func NewCampaignService(repo *repository.CampaignRepository, c *cache.Cache) *CampaignService {
+func NewCampaignService(repo repository.CampaignRepositoryInterface, c *cache.Cache) *CampaignService {
 	return &CampaignService{
 		repo:  repo,
 		cache: c,
