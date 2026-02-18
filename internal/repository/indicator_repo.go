@@ -111,13 +111,16 @@ func (r *IndicatorRepository) GetByID(ctx context.Context, id string) (*model.In
 	}
 
 	relatedQuery := `
-		SELECT DISTINCT i.id, i.type, i.value, 'same_campaign' as relationship
+		SELECT i.id, i.type, i.value, 'same_campaign' as relationship
 		FROM indicators i
-		JOIN indicator_campaigns ic ON ic.indicator_id = i.id
-		WHERE ic.campaign_id IN (
-			SELECT campaign_id FROM indicator_campaigns WHERE indicator_id = $1
+		WHERE i.id IN (
+			SELECT DISTINCT ic2.indicator_id
+			FROM indicator_campaigns ic2
+			WHERE ic2.campaign_id IN (
+				SELECT campaign_id FROM indicator_campaigns WHERE indicator_id = $1
+			)
+			AND ic2.indicator_id != $1
 		)
-		AND i.id != $1
 		ORDER BY i.last_seen DESC NULLS LAST
 		LIMIT 5
 	`

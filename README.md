@@ -1,71 +1,71 @@
 # Threat Intelligence Dashboard API
 
-REST API en Go para un dashboard de threat intelligence. Permite consultar indicadores de compromiso (IoCs), campañas de amenazas y actores maliciosos.
+REST API in Go for a threat intelligence dashboard. Query indicators of compromise (IoCs), threat campaigns, and malicious actors.
 
-## Stack Tecnológico
+## Tech Stack
 
-- **Lenguaje**: Go 1.22
+- **Language**: Go 1.22
 - **Router**: Chi v5
-- **Base de datos**: PostgreSQL 16
+- **Database**: PostgreSQL 16
 - **Cache**: Ristretto (in-memory)
 - **Rate Limiting**: httprate
-- **Documentación**: OpenAPI 3.0
+- **Documentation**: OpenAPI 3.0
 
-## Requisitos Previos
+## Prerequisites
 
 - Go 1.22+
-- Docker y Docker Compose
-- PostgreSQL 16 (o usar Docker)
+- Docker and Docker Compose
+- PostgreSQL 16 (or use Docker)
 
-## Inicio Rápido
+## Quick Start
 
-### Con Docker (Recomendado)
+### With Docker (Recommended)
 
 ```bash
-# Clonar el repositorio
+# Clone the repository
 git clone https://github.com/LorenzattiGabriel/threat-intel-api.git
 cd threat-intel-api
 
-# Iniciar todos los servicios
+# Start all services
 make docker-up
 
-# Poblar la base de datos con datos de prueba (10K indicadores)
+# Seed the database with test data (10K indicators)
 make seed
 
-# Ver logs
+# View logs
 make docker-logs
 ```
 
-La API estará disponible en `http://localhost:8080`
-Swagger UI en `http://localhost:8081`
+The API will be available at `http://localhost:8080`
+Swagger UI at `http://localhost:8081`
 
-### Desarrollo Local
+### Local Development
 
 ```bash
-# Instalar dependencias
+# Install dependencies
 go mod download
 
-# Iniciar PostgreSQL
+# Start PostgreSQL
 docker-compose up -d postgres
 
-# Ejecutar migraciones y seed
+# Run migrations and seed
 make seed
 
-# Iniciar la API
+# Start the API
 make run
 ```
 
-## Endpoints de la API
+## API Endpoints
 
 ### 1. GET /api/indicators/{id}
 
-Obtiene información detallada de un indicador específico incluyendo relaciones.
+Get detailed information about a specific indicator including relationships.
 
 ```bash
 curl http://localhost:8080/api/indicators/550e8400-e29b-41d4-a716-446655440000
 ```
 
-**Respuesta:**
+**Response:**
 ```json
 {
   "success": true,
@@ -91,25 +91,25 @@ curl http://localhost:8080/api/indicators/550e8400-e29b-41d4-a716-446655440000
 
 ### 2. GET /api/indicators/search
 
-Búsqueda de indicadores con filtros y paginación.
+Search indicators with filters and pagination.
 
-**Parámetros:**
-| Parámetro | Tipo | Descripción |
+**Parameters:**
+| Parameter | Type | Description |
 |-----------|------|-------------|
 | type | string | ip, domain, url, hash |
-| value | string | Búsqueda parcial en valor |
-| threat_actor | uuid | Filtrar por actor |
-| campaign | uuid | Filtrar por campaña |
-| first_seen_after | date | Fecha ISO |
-| last_seen_before | date | Fecha ISO |
-| page | int | Página (default: 1) |
-| limit | int | Resultados por página (default: 20, max: 100) |
+| value | string | Partial match on value |
+| threat_actor | uuid | Filter by actor |
+| campaign | uuid | Filter by campaign |
+| first_seen_after | date | ISO date |
+| last_seen_before | date | ISO date |
+| page | int | Page number (default: 1) |
+| limit | int | Results per page (default: 20, max: 100) |
 
 ```bash
 curl "http://localhost:8080/api/indicators/search?type=ip&page=1&limit=20"
 ```
 
-**Respuesta:**
+**Response:**
 ```json
 {
   "success": true,
@@ -135,20 +135,20 @@ curl "http://localhost:8080/api/indicators/search?type=ip&page=1&limit=20"
 
 ### 3. GET /api/campaigns/{id}/indicators
 
-Indicadores de una campaña organizados en timeline.
+Get campaign indicators organized in a timeline.
 
-**Parámetros:**
-| Parámetro | Tipo | Descripción |
+**Parameters:**
+| Parameter | Type | Description |
 |-----------|------|-------------|
-| group_by | string | day o week (default: day) |
-| start_date | date | Fecha de inicio |
-| end_date | date | Fecha de fin |
+| group_by | string | day or week (default: day) |
+| start_date | date | Start date |
+| end_date | date | End date |
 
 ```bash
 curl "http://localhost:8080/api/campaigns/camp-456/indicators?group_by=day"
 ```
 
-**Respuesta:**
+**Response:**
 ```json
 {
   "success": true,
@@ -177,10 +177,10 @@ curl "http://localhost:8080/api/campaigns/camp-456/indicators?group_by=day"
 
 ### 4. GET /api/dashboard/summary
 
-Estadísticas de alto nivel para el dashboard.
+High-level statistics for the dashboard.
 
-**Parámetros:**
-| Parámetro | Tipo | Descripción |
+**Parameters:**
+| Parameter | Type | Description |
 |-----------|------|-------------|
 | time_range | string | 24h, 7d, 30d (default: 7d) |
 
@@ -188,7 +188,7 @@ Estadísticas de alto nivel para el dashboard.
 curl "http://localhost:8080/api/dashboard/summary?time_range=7d"
 ```
 
-**Respuesta:**
+**Response:**
 ```json
 {
   "success": true,
@@ -204,15 +204,15 @@ curl "http://localhost:8080/api/dashboard/summary?time_range=7d"
 }
 ```
 
-## Ejemplos de Queries SQL Optimizadas
+## Optimized SQL Query Examples
 
-### Query 1: Indicador con Relaciones (Evitar N+1)
+### Query 1: Indicator with Relations (Avoiding N+1)
 
 ```sql
--- En lugar de hacer múltiples queries, usamos subqueries correlacionadas
+-- Instead of multiple queries, we use correlated subqueries
 SELECT
     i.id, i.type, i.value, i.confidence, i.first_seen, i.last_seen,
-    -- Campaigns como JSON array en una subquery
+    -- Campaigns as JSON array in a subquery
     COALESCE(
         (SELECT json_agg(json_build_object('id', c.id, 'name', c.name, 'active', c.status = 'active'))
          FROM campaigns c
@@ -220,7 +220,7 @@ SELECT
          WHERE ic.indicator_id = i.id),
         '[]'
     ) as campaigns,
-    -- Actors como JSON array
+    -- Actors as JSON array
     COALESCE(
         (SELECT json_agg(json_build_object('id', a.id, 'name', a.name, 'confidence', ia.attribution_confidence))
          FROM threat_actors a
@@ -231,16 +231,16 @@ SELECT
 FROM indicators i
 WHERE i.id = $1;
 
--- Optimización: Una sola query retorna el indicador con todas sus relaciones
--- en lugar de 3 queries separadas (indicador, campaigns, actors)
+-- Optimization: A single query returns the indicator with all its relations
+-- instead of 3 separate queries (indicator, campaigns, actors)
 ```
 
-### Query 2: Dashboard Summary con Agregaciones
+### Query 2: Dashboard Summary with Aggregations
 
 ```sql
--- Todas las estadísticas del dashboard en una sola query
+-- All dashboard statistics in a single query
 SELECT
-    -- Nuevos indicadores por tipo en el rango de tiempo
+    -- New indicators by type within time range
     json_build_object(
         'ip', COUNT(*) FILTER (WHERE type = 'ip' AND created_at >= NOW() - INTERVAL '7 days'),
         'domain', COUNT(*) FILTER (WHERE type = 'domain' AND created_at >= NOW() - INTERVAL '7 days'),
@@ -248,7 +248,7 @@ SELECT
         'hash', COUNT(*) FILTER (WHERE type = 'hash' AND created_at >= NOW() - INTERVAL '7 days')
     ) as new_indicators,
 
-    -- Distribución total
+    -- Total distribution
     json_build_object(
         'ip', COUNT(*) FILTER (WHERE type = 'ip'),
         'domain', COUNT(*) FILTER (WHERE type = 'domain'),
@@ -257,81 +257,101 @@ SELECT
     ) as distribution
 FROM indicators;
 
--- Optimización: Usa FILTER clause de PostgreSQL para calcular múltiples
--- agregaciones condicionales en un solo scan de la tabla
+-- Optimization: Uses PostgreSQL FILTER clause to calculate multiple
+-- conditional aggregations in a single table scan
 ```
 
-## Arquitectura
+## Architecture
 
 ```
 threat-intel-api/
 ├── cmd/api/main.go           # Entry point
 ├── internal/
-│   ├── config/               # Configuración via env vars
-│   ├── database/             # Conexión PostgreSQL + migraciones
-│   ├── model/                # Structs de dominio
-│   ├── repository/           # Capa de acceso a datos (SQL)
-│   ├── service/              # Lógica de negocio + cache
+│   ├── config/               # Configuration via env vars
+│   ├── database/             # PostgreSQL connection + migrations
+│   ├── model/                # Domain structs
+│   ├── repository/           # Data access layer (SQL)
+│   ├── service/              # Business logic + cache
 │   ├── handler/              # HTTP handlers
 │   ├── middleware/           # Rate limit, logging, recovery
-│   └── cache/                # Cache in-memory con Ristretto
-├── api/openapi.yaml          # Especificación OpenAPI
-├── scripts/seed.go           # Script para poblar datos
+│   └── cache/                # In-memory cache with Ristretto
+├── api/openapi.yaml          # OpenAPI specification
+├── scripts/seed.go           # Script to populate test data
 ├── Dockerfile
 ├── docker-compose.yaml
 └── Makefile
 ```
 
-### Decisiones de Diseño
+### Design Decisions
 
-1. **Arquitectura en Capas**: Separación clara entre handlers, services y repositories para facilitar testing y mantenimiento.
+1. **Layered Architecture**: Clear separation between handlers, services, and repositories for easier testing and maintenance.
 
 2. **Cache Strategy**:
-   - Indicador detalle: 2 min TTL
-   - Búsqueda: 30 seg TTL
-   - Dashboard: 5 min TTL (datos menos volátiles)
+   - Indicator detail: 2 min TTL
+   - Search: 30 sec TTL
+   - Dashboard: 5 min TTL (less volatile data)
 
-3. **PostgreSQL vs SQLite**: PostgreSQL ofrece mejor concurrencia, JSONB nativo, y funciones de agregación avanzadas como `FILTER`.
+3. **PostgreSQL vs SQLite**: PostgreSQL offers better concurrency, native JSONB, and advanced aggregation functions like `FILTER`.
 
-4. **Rate Limiting**: 100 req/min por IP+endpoint usando sliding window.
+4. **Rate Limiting**: 100 req/min per IP+endpoint using sliding window.
 
-## Mejoras Futuras
+## Assumptions
 
-Con más tiempo implementaría:
+- All indicator IDs are UUIDs
+- Timestamps are stored and returned in UTC (ISO 8601 format)
+- The API is stateless; authentication would be added via JWT middleware
+- Search is case-insensitive for indicator values
+- Cache invalidation is time-based (TTL), not event-based
 
-- [ ] Autenticación JWT con roles
-- [ ] Websockets para actualizaciones en tiempo real
-- [ ] Elasticsearch para búsqueda full-text
-- [ ] Redis para cache distribuido
-- [ ] Métricas con Prometheus
-- [ ] Tracing con OpenTelemetry
-- [ ] GraphQL como alternativa a REST
-- [ ] Bulk import/export de indicadores
-- [ ] Integración con feeds de threat intel (MISP, OTX)
+## Future Improvements
+
+With more time I would implement:
+
+- [ ] JWT authentication with roles
+- [ ] Elasticsearch for full-text search
+- [ ] Redis for distributed cache
+- [ ] Datadog metrics
+- [ ] OpenTelemetry tracing
+- [ ] GraphQL as an alternative to REST
+- [ ] Bulk import/export of indicators
+- [ ] MongoDB for storing raw threat intel feeds (NoSQL)
+- [ ] Apache Kafka for event streaming
+- [ ] WebSockets for real-time indicator updates
+- [ ] S3 for  sample storage
 
 ## Tests
 
 ```bash
-# Ejecutar todos los tests
+# Run all tests
 make test
 
-# Tests con coverage
+# Tests with coverage
 make test-cover
 ```
 
-## Variables de Entorno
+### Test Coverage
 
-| Variable | Default | Descripción |
+| Layer | Tests |
+|-------|-------|
+| Cache | 6 tests |
+| Middleware | 4 tests |
+| Handlers | 19 tests |
+| Services | 20 tests |
+| **Total** | **49 tests** |
+
+## Environment Variables
+
+| Variable | Default | Description |
 |----------|---------|-------------|
-| SERVER_PORT | 8080 | Puerto del servidor |
-| DB_HOST | localhost | Host de PostgreSQL |
-| DB_PORT | 5432 | Puerto de PostgreSQL |
-| DB_USER | postgres | Usuario de DB |
-| DB_PASSWORD | postgres | Contraseña de DB |
-| DB_NAME | threat_intel | Nombre de la DB |
-| RATE_LIMIT_RPM | 100 | Requests por minuto |
-| CACHE_MAX_SIZE_MB | 100 | Tamaño máximo del cache |
+| SERVER_PORT | 8080 | Server port |
+| DB_HOST | localhost | PostgreSQL host |
+| DB_PORT | 5432 | PostgreSQL port |
+| DB_USER | postgres | Database user |
+| DB_PASSWORD | postgres | Database password |
+| DB_NAME | threat_intel | Database name |
+| RATE_LIMIT_RPM | 100 | Requests per minute |
+| CACHE_MAX_SIZE_MB | 100 | Maximum cache size |
 
-## Licencia
+## License
 
 MIT

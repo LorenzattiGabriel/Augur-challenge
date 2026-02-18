@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -38,6 +39,7 @@ func (h *IndicatorHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 			respondNotFound(w, "Indicator not found")
 			return
 		}
+		slog.Error("Failed to get indicator", "error", err, "id", id)
 		respondInternalError(w)
 		return
 	}
